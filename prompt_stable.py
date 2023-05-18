@@ -18,12 +18,13 @@ with open("promts.json", 'w') as json_file:
         data['to_gen'] = []
         json.dump(data, json_file)
 
-if __name__ == '__main__':
+
+def main():
     pipe = DiffusionPipeline.from_pretrained("models/XpucT/Deliberate", local_files_only=True)
     if torch.cuda.is_available():
         pipe.to("cuda")
 
-    #pipe.safety_checker = lambda images, clip_input: (images, False)
+    # pipe.safety_checker = lambda images, clip_input: (images, False)
     output = Path("./output")
     output.mkdir(parents=True, exist_ok=True)
     for i in range(len(promts)):
@@ -33,3 +34,7 @@ if __name__ == '__main__':
             with open("promts.json", 'w') as json_file:
                 data['already_gen'].append(promts[i])
                 json.dump(data, json_file)
+
+
+if __name__ == '__main__':
+    main()

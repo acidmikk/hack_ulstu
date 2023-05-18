@@ -179,6 +179,12 @@ def add_promt(promt):
         json.dump(data, json_file)
     return jsonify({'code': 1})
 
+
+@app.route('generation/')
+def generation():
+    pass
+
+
 @app.route('/exit')
 def exit():
     file_name = 'rooms/' + str(session['room_id']) + ".json"
