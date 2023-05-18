@@ -1,0 +1,12 @@
+workflows:
+  - name: prompt-stable
+    provider: bash
+    deps:
+      - workflow: stable-diffusion
+    commands:
+      - pip install -r stable_diffusion/requirements.txt
+      - python stable_diffusion/prompt_stable.py ${{ run.args }}
+    artifacts:
+      - path: ./output
+    resources:
+      memory: 16GB
