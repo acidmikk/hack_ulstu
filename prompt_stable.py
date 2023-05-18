@@ -2,15 +2,34 @@ import argparse
 from pathlib import Path
 
 import torch
-from diffusers import StableDiffusionPipeline
+from diffusers import DiffusionPipeline
+import json
+from profanity_check import predict, predict_prob
+
+with open("promts.json", "r") as fh:
+    data = json.load(fh)
+    promts = data['to_gen']
+
+with open("promts.json", 'w') as json_file:
+    if len(promts) > 50:
+        data['to_gen'] = promts[50:]
+        promts = promts[:50]
+    else:
+        data['to_gen'] = []
+        json.dump(data, json_file)
 
 if __name__ == '__main__':
-    pipe = StableDiffusionPipeline.from_pretrained("models/runwayml/stable-diffusion-v1-5", local_files_only=True)
+    pipe = DiffusionPipeline.from_pretrained("models/XpucT/Deliberate", local_files_only=True)
     if torch.cuda.is_available():
         pipe.to("cuda")
-    images = pipe('cats in hat').images
 
+    #pipe.safety_checker = lambda images, clip_input: (images, False)
     output = Path("./output")
     output.mkdir(parents=True, exist_ok=True)
-    for i in range(len(images)):
-        images[i].save(output / f"{i}.png")
+    for i in range(len(promts)):
+        images = pipe(promts[i], negative_prompt='').images
+        if predict_prob(promts[i]) < 0.6:
+            images[0].save(output / f"{promts[i]}.png")
+            with open("promts.json", 'w') as json_file:
+                data['already_gen'].append(promts[i])
+                json.dump(data, json_file)

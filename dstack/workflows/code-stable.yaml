@@ -1,9 +1,0 @@
-workflows:
-  - name: code-stable
-    provider: code
-    deps:
-      - workflow: stable-diffusion
-    setup:
-      - pip install -r requirements.txt
-    resources:
-      memory: 16GB

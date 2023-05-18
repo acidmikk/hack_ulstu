@@ -11,7 +11,8 @@ run_with_ngrok(app)
 #Secret Key
 app.secret_key = "ferias"
 room_list = []
-
+with open("promts.json", "r") as fh:
+    list_name = json.load(fh)['already_gen']
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -108,8 +109,6 @@ def check_room(room_id):
 @app.route('/room_<int:sid>/<int:stage>')
 def change_stage(sid, stage):
     file_name = 'rooms/' + str(sid) + ".json"
-    with open(file_name) as json_file:
-        data = json.load(json_file)
     with open(file_name, 'r+') as file:
         file_data = json.load(file)
         file_data["stage_game"] = stage
@@ -121,8 +120,6 @@ def change_stage(sid, stage):
 @app.route('/room_<int:sid>/stage1_<string:pic_name>_<string:phrase>', methods=['POST'])
 def stage1(sid, pic_name, phrase):
     file_name = 'rooms/' + str(sid) + ".json"
-    with open(file_name) as json_file:
-        data = json.load(json_file)
     with open(file_name, 'r+') as file:
         file_data = json.load(file)
         file_data["cards"][pic_name].append(phrase)
@@ -159,7 +156,7 @@ def change_score(sid, player_id):
 @app.route('/room_<int:sid>/stage3')
 def stage3(sid):
     file_name = 'rooms/' + str(sid) + ".json"
-    with open(file_name) as json_file:
+    with open(file_name, 'r') as json_file:
         data = json.load(json_file)
     return data['player']
 
@@ -170,6 +167,17 @@ def reset():
     session.clear()
     return redirect('/')
 
+
+@app.route('/add_promt/<str:promt>')
+def add_promt(promt):
+    file_name = 'promts.json'
+    with open(file_name, 'r') as json_file:
+        data = json.load(json_file)
+
+    with open(file_name, 'w') as json_file:
+        data['to_gen'].append('promt')
+        json.dump(data, json_file)
+    return jsonify({'code': 1})
 
 @app.route('/exit')
 def exit():
