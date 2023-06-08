@@ -1,18 +1,48 @@
 import json
 import os
-import openai
 from random import randint, choice
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from flask_ngrok import run_with_ngrok
+from flask import Flask, request, redirect, session, jsonify, make_response
+from websockets.sync.client import connect
+import config
+import jwt
+import datetime
+from functools import wraps
 
-app = Flask(__name__, static_url_path='/static', static_folder='pics')
-run_with_ngrok(app)
+app = Flask(__name__, static_url_path='/static', static_folder='output')
 
 #Secret Key
-app.secret_key = "ferias"
+app.secret_key = config.SECRET_KEY
 room_list = []
-with open("promts.json", "r") as fh:
-    list_name = json.load(fh)['already_gen']
+
+
+def load_name():
+    with open("promts.json", "r") as fh:
+        return json.load(fh)['already_gen']
+
+
+def get_tokens(token):
+    with open("tokens.json", "r") as fh:
+        return json.load(fh)['token']
+
+
+def token_required(f):
+    @wraps(f)
+    def decorator(*args, **kwargs):
+        token = None
+        if 'x-access-tokens' in request.headers:
+            token = request.headers['x-access-tokens']
+
+        if not token:
+            return jsonify({'message': 'a valid token is missing'})
+        try:
+            imei = get_tokens(token)
+        except:
+            return jsonify({'message': 'token is invalid'})
+
+        return f(*args, **kwargs)
+
+    return decorator
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -30,9 +60,9 @@ def create(player_name, avatar_id):
         room_list.append(room_id)
         cards = {}
         for i in range(4):
-            pic = choice(list_name)
+            pic = choice(load_name())
             while pic in cards.keys():
-                pic = choice(list_name)
+                pic = choice(load_name())
             cards[pic] = []
         session['sid'] = room_id
         aDict = {"sid": room_id,
@@ -53,12 +83,12 @@ def create(player_name, avatar_id):
         return jsonify(aDict)
 
 
-@app.route('/join/<string:player_name>_and_<int:avatar_id>', methods=['GET'])
-def join(player_name, avatar_id):
-    if request.method == 'GET':
-        session['player_name'] = player_name
-        session['avatar_id'] = avatar_id
-    return "1"
+# @app.route('/join/<string:player_name>_and_<int:avatar_id>', methods=['GET'])
+# def join(player_name, avatar_id):
+#     if request.method == 'GET':
+#         session['player_name'] = player_name
+#         session['avatar_id'] = avatar_id
+#     return "1"
 
 
 @app.route('/join_room/<string:player_name>_<int:avatar_id>_<int:sid>', methods=['GET'])
@@ -84,17 +114,20 @@ def join_room(player_name, avatar_id, sid):
         json.dump(file_data, file, indent=4)
 
     session['sid'] = data['sid']
+    message = '{"sid": "'+str(sid)+'", "newPlayer": {"name":"'+player_name+'", "iconId":"'+str(avatar_id)+'", "score":"0"}}'
+    with connect(config.socket_url) as websocket:
+        websocket.send(message)
 
-    return jsonify(data)
+    return jsonify(file_data)
 
 
-@app.route('/room_<int:sid>')
-def room(sid):
-    file_name = 'rooms/' + str(sid) + ".json"
-    with open(file_name) as json_file:
-        data = json.load(json_file)
-
-    return jsonify(data)
+# @app.route('/room_<int:sid>')
+# def room(sid):
+#     file_name = 'rooms/' + str(sid) + ".json"
+#     with open(file_name) as json_file:
+#         data = json.load(json_file)
+#
+#     return jsonify(data)
 
 
 def check_room(room_id):
@@ -106,6 +139,14 @@ def check_room(room_id):
     return False
 
 
+game_stage = {
+    0: 'paintWaiting',
+    1: 'paintDescrition',
+    2: 'answerChoose',
+    3: 'liderBoard'
+}
+
+
 @app.route('/room_<int:sid>/<int:stage>')
 def change_stage(sid, stage):
     file_name = 'rooms/' + str(sid) + ".json"
@@ -114,6 +155,9 @@ def change_stage(sid, stage):
         file_data["stage_game"] = stage
         file.seek(0)
         json.dump(file_data, file, indent=4)
+        message = '{"sid": "' + str(sid) + '", "GameStage": "' + game_stage[stage] + '"}'
+        with connect(config.socket_url) as websocket:
+            websocket.send(message)
     return "1"
 
 
@@ -128,21 +172,19 @@ def stage1(sid, pic_name, phrase):
     return '1'
 
 
-@app.route('/room_<int:sid>/stage2_<int:player_id>', methods=['GET'])
-def stage2(sid, player_id):
-    file_name = 'rooms/' + str(sid) + ".json"
-    with open(file_name) as json_file:
-        data = json.load(json_file)
-    new_data = {'player_id': player_id,
-                'card': data['cards'][player_id - 1]}
-    return jsonify(new_data)
+# @app.route('/room_<int:sid>/stage2_<int:player_id>', methods=['GET'])
+# def stage2(sid, player_id):
+#     file_name = 'rooms/' + str(sid) + ".json"
+#     with open(file_name) as json_file:
+#         data = json.load(json_file)
+#     new_data = {'player_id': player_id,
+#                 'card': data['cards'][player_id - 1]}
+#     return jsonify(new_data)
 
 
 @app.route('/room_<int:sid>/changeScore_<int:player_id>', methods=['POST'])
 def change_score(sid, player_id):
     file_name = 'rooms/' + str(sid) + ".json"
-    with open(file_name) as json_file:
-        data = json.load(json_file)
     with open(file_name, 'r+') as file:
         file_data = json.load(file)
         for i in range(len(file_data['players'])):
@@ -161,32 +203,32 @@ def stage3(sid):
     return data['player']
 
 
-@app.route('/reset')
-def reset():
-    print("Current game is ending.")
-    session.clear()
-    return redirect('/')
+# @app.route('/reset')
+# def reset():
+#     print("Current game is ending.")
+#     session.clear()
+#     return redirect('/')
 
 
-@app.route('/add_promt/<str:promt>')
+@app.route('/add_promt/<string:promt>')
 def add_promt(promt):
     file_name = 'promts.json'
     with open(file_name, 'r') as json_file:
         data = json.load(json_file)
 
     with open(file_name, 'w') as json_file:
-        data['to_gen'].append('promt')
+        data['to_gen'].append(promt)
         json.dump(data, json_file)
     return jsonify({'code': 1})
 
 
-@app.route('generation/')
+@app.route('/generation/')
 def generation():
     pass
 
 
 @app.route('/exit')
-def exit():
+def exit_player():
     file_name = 'rooms/' + str(session['room_id']) + ".json"
     with open(file_name, 'r+', encoding='utf-8') as json_file:
         new_data = json.load(json_file)
@@ -198,6 +240,10 @@ def exit():
 
     with open(file_name, 'w', encoding='utf-8') as json_file:
         json_file.write(json.dumps(new_data, indent=2))
+
+    message = '{"sid": "'+new_data['sid']+'", "newPlayer": {"name":"'+session.get('player_name')+'"}}'
+    with connect(config.socket_url) as websocket:
+        websocket.send(message)
 
     session.clear()
     return redirect('/')

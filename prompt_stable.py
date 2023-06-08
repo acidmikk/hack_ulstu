@@ -1,4 +1,5 @@
 import argparse
+import random
 from pathlib import Path
 
 import torch
@@ -6,20 +7,20 @@ from diffusers import DiffusionPipeline
 import json
 from profanity_check import predict, predict_prob
 
-with open("promts.json", "r") as fh:
-    data = json.load(fh)
-    promts = data['to_gen']
 
-with open("promts.json", 'w') as json_file:
-    if len(promts) > 50:
-        data['to_gen'] = promts[50:]
-        promts = promts[:50]
-    else:
-        data['to_gen'] = []
-        json.dump(data, json_file)
+def generate():
+    with open("promts.json", "r") as fh:
+        data = json.load(fh)
+        promts = data['to_gen']
 
+    with open("promts.json", 'w') as json_file:
+        if len(promts) > 50:
+            data['to_gen'] = promts[50:]
+            promts = promts[:50]
+        else:
+            data['to_gen'] = []
+            json.dump(data, json_file)
 
-def main():
     pipe = DiffusionPipeline.from_pretrained("models/XpucT/Deliberate", local_files_only=True)
     if torch.cuda.is_available():
         pipe.to("cuda")
@@ -37,4 +38,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    generate()
