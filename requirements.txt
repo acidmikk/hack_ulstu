@@ -5,3 +5,4 @@ scipy
 ftfy
 safetensors
 profanity_check
+pyjwt
