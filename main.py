@@ -161,7 +161,7 @@ game_stage = {
     0: 'paintWaiting',
     1: 'paintDescrition',
     2: 'answerChoose',
-    3: 'liderBoard'
+    3: 'winnerBoard'
 }
 
 
@@ -176,6 +176,10 @@ def change_stage(uid, sid, stage):
         file.seek(0)
         json.dump(file_data, file, indent=4)
         if stage == 2:
+            with connect(config.socket_url) as websocket:
+                file_data['sid'] = str(file_data['sid'])
+                websocket.send(json.dumps(file_data))
+        elif stage == 3:
             with connect(config.socket_url) as websocket:
                 file_data['sid'] = str(file_data['sid'])
                 websocket.send(json.dumps(file_data))
@@ -216,21 +220,21 @@ def change_score(uid, sid):
         file_data = json.load(file)
     with open(file_name, 'w') as file:
         for i in range(len(file_data['players'])):
-            if file_data['players']['player_uid'] == uid:
-                file_data['players']['score'] += 1
+            if file_data['players'][i]['player_uid'] == uid:
+                file_data['players'][i]['score'] += 10
                 break
         file.seek(0)
         json.dump(file_data, file)
     return jsonify({'status': 'ok'})
 
 
-@app.route('/room_<int:sid>/stage3', methods=['POST'])
-@token_required
-def stage3(uid, sid):
-    file_name = 'rooms/' + str(sid) + ".json"
-    with open(file_name, 'r') as json_file:
-        data = json.load(json_file)
-    return data['player']
+# @app.route('/room_<int:sid>/stage3', methods=['POST'])
+# @token_required
+# def stage3(uid, sid):
+#     file_name = 'rooms/' + str(sid) + ".json"
+#     with open(file_name, 'r') as json_file:
+#         data = json.load(json_file)
+#     return data['player']
 
 
 # @app.route('/reset')
