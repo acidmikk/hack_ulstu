@@ -19,5 +19,15 @@ def get_uid(token):
         keys = list(data.keys())
         return keys[values.index(token)]
 
-print(get_uid('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF5ZXJfdWlkIjoiMWI1NDI4ZWRlNGI2OTQ1OSIsImV4cCI6MTY4NjI1NzM5Mn0.JwNPlrdQ0trFUcWqi9T0gIZqBAeAsMomcHBr11Zty4Y'))
 
+def get_sorted_players():
+    file_name = 'rooms/9790.json'
+    with open(file_name, 'r') as file:
+        file_data = json.load(file)
+    players = file_data['players']
+    players.sort(key=lambda item: -item['score'])
+    file_data['players'] = players
+    print(file_data)
+
+
+print(len("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF5ZXJfdWlkIjoiZDUxMTQ1ZWYyM2NlNzc1MSIsImV4cCI6MTY4Njg2NzI4OX0.8fYYiRi09qCH9RTuHYNOR4KEd2U_LPCT9adRL5tiVSw"))

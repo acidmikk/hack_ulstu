@@ -132,7 +132,8 @@ def join_room(uid, player_name, avatar_id, sid):
         file.seek(0)
         json.dump(file_data, file, indent=4)
 
-    message = '{"sid": "'+str(sid)+'", "newPlayer": {"player_uid": "'+uid+'", "name":"'+player_name+'", "iconId":"'+str(avatar_id)+'", "score":"0"}}'
+    message = '{"sid": "'+str(sid)+'", "newPlayer": {"player_uid": "'+uid+'", "name":"'+player_name+'", ' \
+              '"iconId":"'+str(avatar_id)+'", "score":"0"}}'
     with connect(config.socket_url) as websocket:
         websocket.send(message)
 
@@ -161,7 +162,8 @@ game_stage = {
     0: 'paintWaiting',
     1: 'paintDescrition',
     2: 'answerChoose',
-    3: 'winnerBoard'
+    3: 'winnerBoard',
+    4: 'scoreBoard'
 }
 
 
@@ -174,12 +176,14 @@ def change_stage(uid, sid, stage):
     with open(file_name, 'w') as file:
         file_data["stage_game"] = game_stage[stage]
         file.seek(0)
-        json.dump(file_data, file, indent=4)
-        if stage == 2:
+        if stage in [2, 3]:
             with connect(config.socket_url) as websocket:
                 file_data['sid'] = str(file_data['sid'])
                 websocket.send(json.dumps(file_data))
-        elif stage == 3:
+        elif stage == 4:
+            players = file_data['players']
+            players.sort(key=lambda item: -item['score'])
+            file_data['players'] = players
             with connect(config.socket_url) as websocket:
                 file_data['sid'] = str(file_data['sid'])
                 websocket.send(json.dumps(file_data))
@@ -187,6 +191,7 @@ def change_stage(uid, sid, stage):
             message = '{"sid": "' + str(sid) + '", "GameStage": "' + file_data['stage_game'] + '"}'
             with connect(config.socket_url) as websocket:
                 websocket.send(message)
+        json.dump(file_data, file, indent=4)
     return jsonify({'status': 'ok'})
 
 
@@ -226,6 +231,7 @@ def change_score(uid, sid):
         file.seek(0)
         json.dump(file_data, file)
     return jsonify({'status': 'ok'})
+
 
 
 # @app.route('/room_<int:sid>/stage3', methods=['POST'])
